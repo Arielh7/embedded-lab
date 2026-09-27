@@ -1,0 +1,40 @@
+//
+// !!! WARNING !!! AUTO-GENERATED FILE!
+// PLEASE DO NOT MODIFY IT AND USE "platformio.ini":
+// https://docs.platformio.org/page/projectconf/section_env_build.html#build-flags
+//
+{
+    "configurations": [
+        {
+            "name": "PlatformIO",
+            "includePath": [
+                "C:/Users/lapto/Documents/code/Study/Firmware/avr/atmega328p/01-blink/include",
+                "C:/Users/lapto/Documents/code/Study/Firmware/avr/atmega328p/01-blink/src",
+                ""
+            ],
+            "browse": {
+                "limitSymbolsToIncludedHeaders": true,
+                "path": [
+                    "C:/Users/lapto/Documents/code/Study/Firmware/avr/atmega328p/01-blink/include",
+                    "C:/Users/lapto/Documents/code/Study/Firmware/avr/atmega328p/01-blink/src",
+                    ""
+                ]
+            },
+            "defines": [
+                "F_CPU=8000000L",
+                "PLATFORMIO=60200",
+                "ARDUINO_AVR_ATmega328P",
+                "__AVR_ATmega328P__",
+                ""
+            ],
+            "cStandard": "gnu11",
+            "cppStandard": "gnu++11",
+            "compilerPath": "C:/Users/lapto/.platformio/packages/toolchain-atmelavr/bin/avr-gcc.exe",
+            "compilerArgs": [
+                "-mmcu=atmega328p",
+                ""
+            ]
+        }
+    ],
+    "version": 4
+}
