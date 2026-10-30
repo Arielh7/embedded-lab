@@ -1,47 +1,36 @@
-# 7-Segment Counter
+# 🧪 7-Segment Counter
 
-AVR firmware that drives a single 7-segment display as a decimal counter
-(0–9). A push button increments the count. Debouncing and edge detection
-are implemented in software.
+![C](https://img.shields.io/badge/C-bare--metal-blue?logo=c)
+![PlatformIO](https://img.shields.io/badge/PlatformIO-orange?logo=platformio)
+![Proteus](https://img.shields.io/badge/Proteus-Simulation-green)
+![ATmega328P](https://img.shields.io/badge/MCU-ATmega328P-red)
 
-## Features
+![Header](https://placehold.co/1200x300/1e1e1e/ffffff?text=ATmega328P+%2B+7-Segment+Counter)
 
-- Single 7-segment display (common anode)
-- Push button increments the counter (0 → 9 → 0)
-- Rising-edge detection with 20 ms debounce
-- Written in pure C (no Arduino framework)
-- Target: ATmega328P @ 8 MHz
-- PlatformIO project
+Bare-metal firmware that drives a **single 7-segment display** as a decimal counter (0–9). A push button increments the count, with **rising-edge detection and 20 ms debounce** implemented in software. Part of my embedded firmware collection built with **PlatformIO**, simulated in **Proteus** (no physical hardware).
 
-## Hardware
+---
+
+## ✨ Features
+
+- ✅ Bare-metal C (no Arduino framework)
+- ✅ Single 7-segment display (common anode)
+- ✅ Push button increments the counter (0 → 9 → 0)
+- ✅ Rising-edge detection with 20 ms debounce
+- ✅ Target: ATmega328P @ 8 MHz
+
+---
+
+## 🛠️ Hardware (simulated in Proteus)
 
 | Component         | Connection      |
 | ----------------- | --------------- |
 | 7-segment display | PORTD (PD0–PD7) |
-| Common anode      | VCC (5V)        |
+| Common anode      | VCC (5 V)       |
 | Push button B0    | PB0             |
-| Pull-down B0      | 10kΩ to GND     |
-| VCC               | 5V              |
-| GND               | Common ground   |
+| Pull-down B0      | 10 kΩ to GND    |
 
-### Wiring diagram (text)
-
-```
-              ATmega328P
-            ┌───────────┐
-   Seg a ───┤ PD0   PB0 ├──── B0 ──┬── VCC
-   Seg b ───┤ PD1       │          │
-   Seg c ───┤ PD2       │         [10k]
-   Seg d ───┤ PD3       │          │
-   Seg e ───┤ PD4       │         GND
-   Seg f ───┤ PD5       │
-   Seg g ───┤ PD6       │
-   Seg dp ──┤ PD7       │
-            └───────────┘
-```
-
-The display is **common anode**: the common pin goes to VCC, and each
-segment is turned on by pulling its pin LOW (0 = on).
+The display is **common anode**: the common pin goes to VCC, and each segment is turned on by pulling its pin LOW (0 = on).
 
 Segment bit mapping (PORTD):
 
@@ -49,22 +38,35 @@ Segment bit mapping (PORTD):
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Seg | a   | b   | c   | d   | e   | f   | g   | dp  |
 
-## How it works
+> ⚠️ **Proteus simulation only.** Not tested on physical hardware.
 
-1. The main loop writes `seven_seg[counter]` to PORTD, which lights up
-   the corresponding digit.
-2. Each iteration reads the button state and compares it with the previous
-   state to detect a rising edge (0 → 1).
-3. When an edge is detected, a 20 ms debounce delay is applied, and the
-   button is read again to confirm the press.
-4. If confirmed, the counter increments (wrapping from 9 to 0).
-5. The previous button state is updated at the end of every loop
-   iteration, so the next edge can be detected.
+---
 
-## Digit table
+## 📁 Project structure
 
-The `seven_seg[]` array maps each decimal digit to the byte that must be
-written to PORTD:
+```
+7-segment-counter/
+├── src/  (main.c — counter logic, digit table, debounce)
+├── platformio.ini
+└── sim/  (7seg_counter.pdsprj)
+```
+
+---
+
+## ⚙️ How it works
+
+1.  **Setup:** `DDRD = 0xFF` configures PORTD as outputs (segments). `DDRB = 0x00` configures PORTB as input, and `PORTB &= ~(1 << PB0)` disables the internal pull-up on PB0 (external 10 kΩ pull-down is used).
+2.  **Display update:** Each loop iteration writes `seven_seg[counter]` to PORTD, lighting the current digit.
+3.  **Edge detection:** `getStatusB0()` reads `PINB` bit 0. A **rising edge** (`b0Now == 1 && b0Bef == 0`) means the button was just pressed.
+4.  **Debounce:** On the rising edge, a 20 ms delay is applied and the button is re-read. If still high, the press is confirmed.
+5.  **Counter update:** The counter increments and wraps from 9 back to 0.
+6.  **State update:** `b0Bef = b0Now` at the end of every iteration, so the next edge can be detected.
+
+---
+
+## 📚 Digit table
+
+The `seven_seg[]` array maps each decimal digit to the byte written to PORTD. Values are **active low** (common anode):
 
 ```c
 const uint8_t seven_seg[10] = {
@@ -81,13 +83,12 @@ const uint8_t seven_seg[10] = {
 };
 ```
 
-## Build and flash
+---
 
-### With PlatformIO
+## 🚀 Build and simulate
 
 ```bash
-pio run              # build
-pio run --target upload   # flash
+pio run          # Generates the .hex
 ```
 
 `platformio.ini`:
@@ -100,53 +101,21 @@ framework = arduino
 board_build.f_cpu = 8000000L
 ```
 
-### With avr-gcc / avrdude
+1.  Open the `.pdsprj` file in Proteus.
+2.  Double-click the MCU and set **Clock Frequency** to 8 MHz (must match `F_CPU`).
+3.  Load the `.hex` generated by PlatformIO into program memory.
+4.  Run the simulation.
 
-```bash
-avr-gcc -mmcu=atmega328p -DF_CPU=8000000UL -Os \
-    src/main.c -o main.elf
-avr-objcopy -O ihex main.elf main.hex
-avrdude -c usbasp -p m328p -U flash:w:main.hex
-```
+---
 
-## Simulation (Proteus)
+## 📝 Notes & limitations
 
-1. Place an ATmega328P in the schematic.
-2. Double-click the MCU and set **Clock Frequency** to match `F_CPU`
-   (8 MHz). If it doesn't match, `_delay_ms()` will not behave correctly.
-3. Connect the display segments to PORTD (with resistors) and the
-   common anode to VCC.
-4. Connect the button to PB0 with a 10kΩ pull-down to GND.
-5. Load the `.hex` file into the MCU's program memory.
-6. Run the simulation.
-
-> Note: Proteus uses ideal switches with no mechanical bounce.
-> The debounce logic will still work, but you won't see its effect
-> in the simulator.
-
-## File structure
-
-```
-7-segment-counter/
-├── src/
-│   └── main.c        # Main loop, counter logic, digit table
-├── lib/              # PlatformIO private libraries
-├── test/             # PlatformIO tests
-├── platformio.ini
-├── LICENSE
-└── README.md
-```
-
-## Troubleshooting
-
-| Symptom                                | Cause                      | Fix                            |
-| -------------------------------------- | -------------------------- | ------------------------------ |
-| Counter doesn't advance                | Floating input             | Add 10kΩ pull-down to GND      |
-| Counter jumps multiple times per press | Missing debounce           | Increase debounce to 30–50 ms  |
-| Counter only advances once             | Previous state not updated | Set `b0Bef = b0Now` every loop |
-| Wrong digit displayed                  | Wrong segment mapping      | Verify `seven_seg[]` values    |
-| `_delay_ms` wrong timing               | `F_CPU` mismatch           | Match `F_CPU` with MCU clock   |
-
-## License
-
-MIT
+- **No real debounce visible in Proteus:** the simulator uses ideal switches with no mechanical bounce, so the 20 ms debounce logic works but its effect can't be observed. On real hardware it would filter contact bounce.
+- **Blocking debounce:** `_delay_ms(20)` blocks the main loop. Acceptable for this simple project; a timer-based approach would scale better.
+- Troubleshooting quick-ref:
+  - Counter doesn't advance → missing pull-down on PB0 (floating input).
+  - Jumps multiple times per press → increase debounce to 30–50 ms.
+  - Advances only once → make sure `b0Bef = b0Now` runs every loop.
+  - Wrong digit shown → verify `seven_seg[]` values.
+  - `_delay_ms()` timing off → `F_CPU` ≠ Proteus clock.
+- **Future improvements:** active buzzer on each press, count-up/count-down toggle button, multi-digit display with multiplexing.

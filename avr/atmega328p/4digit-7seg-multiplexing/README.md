@@ -1,47 +1,39 @@
-# 4-Digit 7-Segment Multiplexing Clock
+# 🧪 4-Digit 7-Segment Multiplexing Clock
 
-AVR firmware that drives a 4-digit 7-segment display as a real-time
-clock (HH:MM) using time-division multiplexing. The time is kept by
-Timer0 in CTC mode with a 1 ms interrupt.
+![C](https://img.shields.io/badge/C-bare--metal-blue?logo=c)
+![PlatformIO](https://img.shields.io/badge/PlatformIO-orange?logo=platformio)
+![Proteus](https://img.shields.io/badge/Proteus-Simulation-green)
+![ATmega328P](https://img.shields.io/badge/MCU-ATmega328P-red)
 
-## Features
+![Header](https://placehold.co/1200x300/1e1e1e/ffffff?text=ATmega328P+%2B+4-Digit+7-Segment+Clock)
 
-- 4-digit 7-segment display (common anode)
-- Time-division multiplexing: only 4 MCU pins drive the 4 digits
-- Timer0 CTC interrupt at 1 ms for accurate timekeeping
-- Hours (0–23) and minutes (0–59) tracked in software
-- Target: ATmega328P @ 8 MHz
-- PlatformIO project
+Bare-metal firmware that drives a **4-digit 7-segment display** as a real-time clock (HH:MM) using **time-division multiplexing**. Time is kept by Timer0 in CTC mode with a 1 ms interrupt. Part of my embedded firmware collection built with **PlatformIO**, simulated in **Proteus** (no physical hardware).
 
-## Hardware
+---
 
-| Component            | Connection           |
-| -------------------- | -------------------- |
-| Display segments a–g | PORTD (PD0–PD6)      |
-| Display dp           | PD7                  |
-| Common digit 1       | PB0 (via transistor) |
-| Common digit 2       | PB1 (via transistor) |
-| Common digit 3       | PB2 (via transistor) |
-| Common digit 4       | PB3 (via transistor) |
+## ✨ Features
 
-### Wiring diagram (text)
+- ✅ Bare-metal C (no Arduino framework)
+- ✅ 4-digit 7-segment display (common anode)
+- ✅ Time-division multiplexing: only 4 MCU pins drive the 4 digits
+- ✅ Timer0 CTC interrupt at 1 ms for accurate timekeeping
+- ✅ Hours (0–23) and minutes (0–59) tracked in software
+- ✅ Target: ATmega328P @ 8 MHz
 
-```
-              ATmega328P
-            ┌───────────┐
-   Seg a ───┤ PD0   PB0 ├──── COM1 ──[R]── Base NPN
-   Seg b ───┤ PD1   PB1 ├──── COM2 ──[R]── Base NPN
-   Seg c ───┤ PD2   PB2 ├──── COM3 ──[R]── Base NPN
-   Seg d ───┤ PD3   PB3 ├──── COM4 ──[R]── Base NPN
-   Seg e ───┤ PD4       │
-   Seg f ───┤ PD5       │
-   Seg g ───┤ PD6       │
-   Seg dp ──┤ PD7       │
-            └───────────┘
-```
+---
 
-Each common pin drives an NPN transistor (2N3904, BC337, etc.) that
-connects the common cathode of the corresponding digit to GND.
+## 🛠️ Hardware (simulated in Proteus)
+
+| Component            | Connection               |
+| -------------------- | ------------------------ |
+| Display segments a–g | PORTD (PD0–PD6)          |
+| Display dp           | PD7                      |
+| Common digit 1       | PB0 (via NPN transistor) |
+| Common digit 2       | PB1 (via NPN transistor) |
+| Common digit 3       | PB2 (via NPN transistor) |
+| Common digit 4       | PB3 (via NPN transistor) |
+
+Each common pin drives an NPN transistor (2N3904, BC337, etc.) that connects the common cathode of the corresponding digit to GND.
 
 Segment bit mapping (PORTD, active low for common anode):
 
@@ -49,21 +41,29 @@ Segment bit mapping (PORTD, active low for common anode):
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Seg | a   | b   | c   | d   | e   | f   | g   | dp  |
 
-## How it works
+> ⚠️ **Proteus simulation only.** Not tested on physical hardware.
 
-### Multiplexing
+---
 
-The 4 digits share the same 8 segment lines. Only one digit is
-enabled at a time, cycling fast enough (~125 Hz) that the human eye
-sees all 4 digits lit simultaneously.
+## 📁 Project structure
 
-Each digit is enabled for `TIME` ms (currently 2 ms). The full cycle
-takes `4 × TIME = 8 ms`, giving a refresh rate of ~125 Hz.
+```
+4digit-7seg-multiplexing/
+├── src/  (main.c — timer, multiplexing, clock logic)
+├── platformio.ini
+└── sim/  (4digit_7seg.pdsprj)
+```
 
-### Timekeeping
+---
 
-Timer0 is configured in CTC mode with a prescaler of 64. At 8 MHz,
-this generates an interrupt every 1 ms:
+## ⚙️ How it works
+
+1.  **Initialization:** `timer0_init()` sets PORTD and PB0–PB3 as outputs, configures Timer0 in CTC mode with prescaler 64, `OCR0A = 124` (1 ms interrupt at 8 MHz), enables `OCIE0A` and calls `sei()`.
+2.  **Multiplexing:** `multiplexing(d0, d1, d2, d3)` enables one digit at a time via PB0–PB3, writes the segment pattern to PORTD, waits `TIME` ms (2 ms), then disables it before moving to the next. A full cycle is `4 × TIME = 8 ms` → ~125 Hz refresh rate, fast enough for the eye to see all digits lit.
+3.  **Timekeeping:** The Timer0 ISR increments `ms` every 1 ms. At 1000 ms, `seconds` increments; at 60 s, `minutes`; at 60 min, `hours`, wrapping at 24.
+4.  **Main loop:** Atomically reads `hours` and `minutes` (`cli()`/`sei()`), splits them into 4 digits (`h/10`, `h%10`, `m/10`, `m%10`), and calls `multiplexing()`.
+
+Timer0 math at 8 MHz:
 
 ```
 8,000,000 / 64 = 125,000 Hz  →  8 µs per tick
@@ -71,21 +71,11 @@ this generates an interrupt every 1 ms:
 OCR0A = 124 (counts 0..124 = 125 ticks)
 ```
 
-Inside the ISR, a millisecond counter is incremented. When it reaches
-1000, one second has passed:
+---
 
-- `seconds` increments every 1 s
-- `minutes` increments every 60 s
-- `hours` increments every 60 min
-- `hours` wraps at 24
+## 📚 Digit table
 
-The main loop reads `hours` and `minutes`, splits them into 4 digits,
-and calls `multiplexing()`.
-
-## Digit table
-
-The `seven_seg[]` array maps each decimal digit to the byte written
-to PORTD. Values are **active low** (common anode):
+The `seven_seg[]` array maps each decimal digit to the byte written to PORTD. Values are **active low** (common anode):
 
 ```c
 const uint8_t seven_seg[10] = {
@@ -102,13 +92,12 @@ const uint8_t seven_seg[10] = {
 };
 ```
 
-## Build and flash
+---
 
-### With PlatformIO
+## 🚀 Build and simulate
 
 ```bash
-pio run              # build
-pio run --target upload   # flash
+pio run          # Generates the .hex
 ```
 
 `platformio.ini`:
@@ -117,66 +106,26 @@ pio run --target upload   # flash
 [env:ATmega328P]
 platform = atmelavr
 board = ATmega328P
-framework
+framework = arduino   ; or bare-metal config with f_cpu
 board_build.f_cpu = 8000000L
 ```
 
-### With avr-gcc / avrdude
+1.  Open the `.pdsprj` file in Proteus.
+2.  Double-click the MCU and set **Clock Frequency** to 8 MHz (must match `F_CPU`).
+3.  Load the `.hex` generated by PlatformIO into program memory.
+4.  Run the simulation.
 
-```bash
-avr-gcc -mmcu=atmega328p -DF_CPU=8000000UL -Os \
-    src/main.c -o main.elf
-avr-objcopy -O ihex main.elf main.hex
-avrdude -c usbasp -p m328p -U flash:w:main.hex
-```
+---
 
-## Simulation (Proteus)
+## 📝 Notes & limitations
 
-1. Place an ATmega328P in the schematic.
-2. Double-click the MCU and set **Clock Frequency** to match `F_CPU`
-   (8 MHz). If it doesn't match, the Timer and `_delay_ms()` will
-   not behave correctly.
-3. Connect the 4-digit display segments to PORTD (with resistors)
-   and the common pins to NPN transistors driven by PB0–PB3.
-4. Load the `.hex` file into the MCU's program memory.
-5. Run the simulation.
-
-> Note: Proteus uses ideal switches with no mechanical bounce, and
-> the simulated clock is perfectly accurate. The real hardware may
-> drift slightly over time.
-
-## File structure
-
-```
-4digit-7seg-multiplexing/
-├── src/
-│   └── main.c        # Everything: timer, multiplexing, clock logic
-├── lib/              # PlatformIO private libraries
-├── test/             # PlatformIO tests
-├── platformio.ini
-├── LICENSE
-└── README.md
-```
-
-## Troubleshooting
-
-| Symptom                       | Cause                           | Fix                                  |
-| ----------------------------- | ------------------------------- | ------------------------------------ |
-| Display shows nothing         | Wrong common logic              | Check NPN vs PNP, active low/high    |
-| Only one digit lights up      | Multiplexing not cycling        | Verify PB0–PB3 toggling              |
-| Display flickers              | `TIME` too high                 | Lower `TIME` to 1–2 ms               |
-| Ghosting between digits       | No off-time between digits      | Add `_delay_us(100)` after disable   |
-| Clock runs too fast/slow      | `F_CPU` mismatch                | Match `F_CPU` with Proteus clock     |
-| Clock doesn't advance in 30 s | Normal — minutes change at 60 s | Wait 60 s or lower the threshold     |
-| ISR never runs                | Missing `sei()`                 | Call `sei()` after configuring Timer |
-
-## Future improvements
-
-- Buttons to set hours and minutes
-- Blinking colon (dp) at 1 Hz
-- External RTC (DS3231) for accurate timekeeping
-- 12/24-hour format switch
-
-## License
-
-MIT
+- **Proteus clock is ideal** — on real hardware the clock would drift without an external RTC.
+- `_delay_ms()` in `multiplexing()` blocks the main loop; acceptable here since the ISR handles timekeeping independently, but a timer-driven multiplex would be cleaner.
+- Common-anode logic: segment bytes are **active low**.
+- Troubleshooting quick-ref:
+  - Display blank → check NPN wiring / common logic.
+  - Only one digit lit → verify PB0–PB3 toggling.
+  - Flicker → lower `TIME` to 1–2 ms.
+  - Ghosting → add a short off-delay after disabling a digit.
+  - Clock runs fast/slow → `F_CPU` ≠ Proteus clock.
+- **Future improvements:** buttons to set time, blinking colon at 1 Hz, external RTC (DS3231), 12/24 h switch.

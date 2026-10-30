@@ -1,51 +1,122 @@
-# LED Sequence Controller with Button Modes
+# 🧪 LED Sequence Controller with Button Modes
 
-A bare-metal AVR project (ATmega328P) that controls 8 LEDs through 3 different
-animation sequences, selectable via two push buttons. It implements a
-non-blocking cooperative delay with edge detection and debouncing.
+![C](https://img.shields.io/badge/C-bare--metal-blue?logo=c)
+![PlatformIO](https://img.shields.io/badge/PlatformIO-orange?logo=platformio)
+![Proteus](https://img.shields.io/badge/Proteus-Simulation-green)
+![ATmega328P](https://img.shields.io/badge/MCU-ATmega328P-red)
 
-## Features
+![Header](https://placehold.co/1200x300/1e1e1e/ffffff?text=ATmega328P+%2B+8+LEDs+%2B+Button+Modes)
 
-- 3 LED animation sequences (A, B, C)
-- 2 operating modes: manual and automatic
-- Cooperative delay: buttons are polled every 1 ms
-- Edge detection (rising edge) with 20 ms debounce
-- No blocking delays in the main loop
-- Written in pure C (no Arduino framework)
+Bare-metal firmware for an ATmega328P that drives **8 LEDs** through **3 animation sequences**, selectable via two push buttons with **manual and automatic modes**. Button handling uses **rising-edge detection with 20 ms debounce** and a **cooperative delay** that polls the buttons every 1 ms, so the sequences stay responsive to input. Part of my embedded firmware collection built with **PlatformIO**, simulated in **Proteus** (no physical hardware).
 
-## Hardware
+---
+
+## ✨ Features
+
+- ✅ Bare-metal C (no Arduino framework)
+- ✅ 3 LED animation sequences (A, B, C)
+- ✅ 2 operating modes: manual and automatic
+- ✅ Cooperative delay: buttons polled every 1 ms during animations
+- ✅ Rising-edge detection with 20 ms debounce
+- ✅ No blocking delays in the main flow (animations abort on button press)
+- ✅ Target: ATmega328P @ 8 MHz
+
+---
+
+## 🛠️ Hardware (simulated in Proteus)
 
 | Component    | Connection      |
 | ------------ | --------------- |
 | 8 LEDs       | PORTD (PD0–PD7) |
 | Button B0    | PB0             |
 | Button B1    | PB1             |
-| Pull-down B0 | 10kΩ to GND     |
-| Pull-down B1 | 10kΩ to GND     |
-| VCC          | 5V              |
-| GND          | Common ground   |
+| Pull-down B0 | 10 kΩ to GND    |
+| Pull-down B1 | 10 kΩ to GND    |
 
-Each LED must have a current-limiting resistor (220Ω–330Ω) in series.
+Each LED needs a current-limiting resistor (220 Ω–330 Ω) in series.
 
-## How it works
+> ⚠️ **Proteus simulation only.** Not tested on physical hardware.
 
-### Manual mode (default)
+---
 
-- The current sequence runs in a loop.
-- Press **B0** to cycle through sequences: 1 → 2 → 3 → 1.
-- Press **B1** to switch to automatic mode.
+## 📁 Project structure
 
-### Automatic mode
+```
+led-sequence-controller/
+├── src/
+│   ├── main.c        # Main loop, mode/sequence state machine
+│   └── sequence.c    # Sequences, cooperative_delay, button helpers
+├── include/
+│   └── sequence.h
+├── platformio.ini
+└── sim/  (led_sequence.pdsprj)
+```
 
-- The current sequence runs once.
-- When it finishes, the controller advances to the next sequence automatically.
-- Press **B1** to return to manual mode.
+---
 
-## Build and flash
+## ⚙️ How it works
 
-### With PlatformIO
+1.  **Setup:** `DDRD = 0xFF` (LEDs as outputs), `DDRB = 0x00` (buttons as inputs), internal pull-ups on PB0/PB1 disabled (external 10 kΩ pull-downs are used).
+2.  **Main loop:** calls `changeMode(sequence)`, which runs the current sequence's animation step by step.
+3.  **Cooperative delay:** `cooperative_delay(ms)` loops `ms` times, each iteration waiting 1 ms and sampling both buttons. On a **rising edge** (button was 0, now 1), it applies a 20 ms debounce and returns `1` — aborting the animation.
+4.  **Interrupt path (`interrupted == 1`):** the main loop checks which button caused the abort:
+    - **B0:** advances the sequence (1 → 2 → 3 → 1), waits for release (`while (getStatusB0())`) and re-debounces.
+    - **B1:** toggles `mode` (manual ↔ automatic), waits for release and re-debounces.
+5.  **Automatic mode (`mode == 1`):** when a sequence runs to completion without interruption, `sequence` advances automatically to the next one.
+6.  **Manual mode (`mode == 0`):** the current sequence loops forever until a button press changes it.
+
+### Sequences
+
+| ID  | Pattern                     | Description                                                    |
+| --- | --------------------------- | -------------------------------------------------------------- |
+| A   | `0b11110000` ↔ `0b00001111` | High/low half alternation                                      |
+| B   | `0b10101010` ↔ `0b01010101` | Alternating even/odd LEDs                                      |
+| C   | Symmetric sweep             | LEDs fill from both ends toward the center, then empty outward |
+
+---
+
+## 📚 Public API (`sequence.h`)
+
+| Function                          | Description                                                          |
+| --------------------------------- | -------------------------------------------------------------------- |
+| `getStatusB0()` / `getStatusB1()` | Read button state (1 = pressed)                                      |
+| `cooperative_delay(ms)`           | 1 ms-step delay that aborts on button edge; returns 1 if interrupted |
+| `changeMode(sequence)`            | Runs the given sequence step; returns 1 if interrupted               |
+
+---
+
+## 🚀 Build and simulate
 
 ```bash
-pio run              # build
-pio run --target upload   # flash
+pio run          # Generates the .hex
 ```
+
+`platformio.ini`:
+
+```ini
+[env:ATmega328P]
+platform = atmelavr
+board = ATmega328P
+framework = arduino
+board_build.f_cpu = 8000000L
+```
+
+1.  Open the `.pdsprj` file in Proteus.
+2.  Double-click the MCU and set **Clock Frequency** to 8 MHz (must match `F_CPU`).
+3.  Load the `.hex` generated by PlatformIO into program memory.
+4.  Run the simulation — press B0 to cycle sequences, B1 to toggle mode.
+
+---
+
+## 📝 Notes & limitations
+
+- **`cooperative_delay()` is still polling-based**, not fully non-blocking — the delay loop blocks for up to `TIME` ms but returns early on a button edge. A Timer0 ISR + state machine would be the fully non-blocking approach.
+- **`while (getStatusB0())` / `while (getStatusB1())` inside the main loop** are blocking waits for release. Fine here, but would stall any other logic if added later.
+- **Proteus has ideal switches** (no mechanical bounce), so the 20 ms debounce can't be observed in simulation — it's there for real hardware.
+- **`TIME` macro** is defined in `sequence.h` and controls the animation speed.
+- Troubleshooting quick-ref:
+  - Animations freeze → `TIME` too high or `cooperative_delay` never returns.
+  - Sequence doesn't change on B0 → missing pull-down or `while (getStatusB0())` stuck.
+  - Mode doesn't toggle on B1 → same, check PB1 wiring.
+  - LEDs dim / wrong pattern → verify resistor values and `PORTD` bit mapping.
+- **Future improvements:** Timer-driven animation (fully non-blocking), more sequences, speed control via a third button, PWM brightness fade.

@@ -1,35 +1,110 @@
-# ATmega328P External Interrupt (INT0) Demo
+# 🧪 ATmega328P External Interrupt (INT0) Demo
 
-A bare-metal AVR project that demonstrates how to use an **external interrupt (INT0)** on the ATmega328P. A push button triggers the interrupt, which toggles an LED, while the main loop runs an independent LED sequence — proving that the interrupt executes asynchronously without blocking the main program.
+![C](https://img.shields.io/badge/C-bare--metal-blue?logo=c)
+![PlatformIO](https://img.shields.io/badge/PlatformIO-orange?logo=platformio)
+![Proteus](https://img.shields.io/badge/Proteus-Simulation-green)
+![ATmega328P](https://img.shields.io/badge/MCU-ATmega328P-red)
 
-## Features
+![Header](https://placehold.co/1200x300/1e1e1e/ffffff?text=ATmega328P+%2B+External+Interrupt+INT0)
 
-- Bare-metal C (no Arduino framework)
-- External interrupt on **INT0** (PD2 / Arduino pin 2)
-- Rising-edge trigger
-- ISR toggles an LED on **PB3** (Arduino pin 11)
-- Main loop runs a 3-LED sequence on PB0, PB1, PB2
-- Direct register manipulation (`DDRx`, `PORTx`, `EICRA`, `EIMSK`, `EIFR`)
+Bare-metal firmware demonstrating an **external interrupt (INT0)** on the ATmega328P. A push button triggers the ISR, which toggles a dedicated LED, while the main loop runs an independent 3-LED sequence — proving the interrupt executes **asynchronously** without blocking the main program. Part of my embedded firmware collection built with **PlatformIO**, simulated in **Proteus** (no physical hardware).
 
-## Hardware
+---
 
-### Components
+## ✨ Features
 
-- 1x ATmega328P (or Arduino Uno as a target)
-- 4x LEDs
-- 4x 280Ω resistors (for LEDs)
-- 1x push button
-- 1x 10kΩ resistor (pull-down)
-- Breadboard and jumper wires
+- ✅ Bare-metal C (no Arduino framework)
+- ✅ External interrupt on **INT0** (PD2)
+- ✅ **Rising-edge** trigger (`ISC00 | ISC01`)
+- ✅ ISR toggles an LED on **PB3**
+- ✅ Main loop runs a 3-LED sequence on PB0–PB2 independently
+- ✅ Direct register manipulation (`DDRx`, `PORTx`, `EICRA`, `EIMSK`, `EIFR`)
+- ✅ Target: ATmega328P @ 8 MHz
 
-### Pin Connections
+---
 
-| Signal        | ATmega328P Pin | Arduino Pin | Notes                         |
-| ------------- | -------------- | ----------- | ----------------------------- |
-| LED0          | PB0            | 8           | Through 280Ω to GND           |
-| LED1          | PB1            | 9           | Through 280Ω to GND           |
-| LED2          | PB2            | 10          | Through 280Ω to GND           |
-| LED_INT (PB3) | PB3            | 11          | Through 280Ω to GND           |
-| Button        | PD2 (INT0)     | 2           | To VCC; 10kΩ pull-down to GND |
+## 🛠️ Hardware (simulated in Proteus)
 
-### Button Wiring (Pull-Down)
+| Signal  | ATmega328P Pin | Notes                          |
+| ------- | -------------- | ------------------------------ |
+| LED0    | PB0            | Through 280 Ω to GND           |
+| LED1    | PB1            | Through 280 Ω to GND           |
+| LED2    | PB2            | Through 280 Ω to GND           |
+| LED_INT | PB3            | Through 280 Ω to GND           |
+| Button  | PD2 (INT0)     | To VCC; 10 kΩ pull-down to GND |
+
+> ⚠️ **Proteus simulation only.** Not tested on physical hardware.
+
+---
+
+## 📁 Project structure
+
+```
+external-interrupt-int0/
+├── src/  (main.c — ISR, interrupt config, LED sequence)
+├── platformio.ini
+└── sim/  (int0_demo.pdsprj)
+```
+
+---
+
+## ⚙️ How it works
+
+1.  **Pin setup:** `DDRB` sets PB0–PB3 as outputs (LEDs). `DDRD &= ~(1 << PIND2)` configures PD2 as input.
+2.  **Interrupt config:**
+    - `EICRA |= (ISC00 | ISC01)` sets INT0 to trigger on **rising edge**.
+    - `EIMSK |= (1 << INT0)` enables INT0.
+    - `sei()` enables global interrupts.
+3.  **ISR (`INT0_vect`):** toggles PB3 via `PORTB ^= (1 << PINB3)`. Executes instantly whenever the button produces a rising edge on PD2, regardless of what the main loop is doing.
+4.  **Main loop:** runs a 6-step LED sequence on PB0/PB1/PB2 with 500 ms delays. The sequence continues undisturbed while button presses toggle PB3 in the background.
+
+### Why `PINB3` instead of `PB3`?
+
+`PORTB ^= (1 << PINB3)` works because on AVR, `PINB3` and `PB3` both resolve to bit number 3 — the macro is just a named constant for the bit position. It's a common AVR idiom, though `PORTB ^= (1 << PB3)` is arguably clearer.
+
+---
+
+## 📚 Key registers
+
+| Register | Value            | Purpose                     |
+| -------- | ---------------- | --------------------------- |
+| `EICRA`  | `ISC00 \| ISC01` | INT0 on rising edge         |
+| `EIMSK`  | `INT0`           | Enable external interrupt 0 |
+| `SREG.I` | set via `sei()`  | Global interrupt enable     |
+
+---
+
+## 🚀 Build and simulate
+
+```bash
+pio run          # Generates the .hex
+```
+
+`platformio.ini`:
+
+```ini
+[env:ATmega328P]
+platform = atmelavr
+board = ATmega328P
+board_build.f_cpu = 8000000L
+```
+
+1.  Open the `.pdsprj` file in Proteus.
+2.  Double-click the MCU and set **Clock Frequency** to 8 MHz (must match `F_CPU`).
+3.  Load the `.hex` generated by PlatformIO into program memory.
+4.  Run the simulation — press the button and watch PB3's LED toggle immediately while the PB0–PB2 sequence keeps running.
+
+---
+
+## 📝 Notes & limitations
+
+- **No button debounce:** a real mechanical button will produce multiple edges per press, causing the LED to toggle unpredictably. On real hardware, add a hardware debounce (RC filter) or software debounce in the ISR (e.g., ignore edges within 20 ms of the last one).
+- **Proteus has ideal switches** (no bounce), so the effect isn't visible in simulation.
+- **Rising-edge trigger** requires a pull-down resistor on PD2 — otherwise the input floats and generates spurious interrupts.
+- **`_delay_ms()` blocks** the main loop; the ISR still fires during delays, which is exactly what this demo shows. But no other main-loop logic could run.
+- Troubleshooting quick-ref:
+  - ISR never fires → check `sei()` is called and `EIMSK` is set.
+  - LED toggles multiple times per press → no debounce, add hardware RC or software filter.
+  - LED toggles randomly → floating PD2, add pull-down.
+  - Sequence doesn't run → check PB0–PB2 wiring and resistor values.
+- **Future improvements:** hardware/software debounce, use INT1 as a second trigger, counter-based toggle (e.g., every 2 presses), Timer-based LED sequence instead of blocking delays.
