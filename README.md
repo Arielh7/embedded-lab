@@ -1,11 +1,6 @@
 # 🧪 Embedded Lab
 
-![C](https://img.shields.io/badge/C-bare--metal-blue?logo=c)
-![PlatformIO](https://img.shields.io/badge/PlatformIO-orange?logo=platformio)
-![Proteus](https://img.shields.io/badge/Proteus-Simulation-green)
-![ATmega328P](https://img.shields.io/badge/MCU-ATmega328P-red)
-
-![Header](https://placehold.co/1200x300/1e1e1e/ffffff?text=Embedded+Lab+%E2%80%94+Firmware+%26+Proteus+Simulation)
+![Header](https://placehold.co/1200x300/1b4332/ffffff?text=Embedded+Lab+%E2%80%94+Firmware+%26+Proteus+Simulation)
 
 My personal embedded lab: a growing collection of **bare-metal C firmware projects** for microcontrollers, **all simulated in Proteus** — no physical hardware required. Every project is built from scratch at the register level, without the Arduino framework.
 
