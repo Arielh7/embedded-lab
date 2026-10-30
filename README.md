@@ -1,5 +1,3 @@
-# 🧪 Embedded Lab
-
 ![Header](https://placehold.co/1200x300/1b4332/ffffff?text=Embedded+Lab+%E2%80%94+Firmware+%26+Proteus+Simulation)
 
 My personal embedded lab: a growing collection of **bare-metal C firmware projects** for microcontrollers, **all simulated in Proteus** — no physical hardware required. Every project is built from scratch at the register level, without the Arduino framework.
